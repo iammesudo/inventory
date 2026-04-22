@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stocktake — POS System</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .st-id { font-family:'DM Mono',monospace; font-size:13px; color:var(--text-secondary); }
+
+  /* ── Detail view ── */
+  .detail-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+  .detail-header h2 { font-size:18px; font-weight:700; }
+
+  /* ── Counting view ── */
+  .count-layout { display:grid; grid-template-columns:1fr 380px; gap:20px; height:calc(100vh - 120px); }
+  .count-list { display:flex; flex-direction:column; gap:0; overflow-y:auto; }
+  .count-item {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px;
+    border-bottom:1px solid var(--border-light);
+    cursor:pointer;
+    transition:background 0.12s;
+  }
+  .count-item:hover { background:var(--bg); }
+  .count-item.active { background:var(--accent-light); border-left:3px solid var(--accent); }
+  .count-item-icon { font-size:22px; width:40px; height:40px; background:var(--bg); border-radius:8px; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+  .count-item-name { font-weight:600; font-size:13.5px; }
+  .count-item-sku  { font-size:12px; color:var(--text-muted); font-family:'DM Mono',monospace; }
+  .count-item-qty  { margin-left:auto; font-size:13px; font-weight:700; color:var(--text-primary); }
+  .count-item-counted { font-size:11px; color:var(--green); font-weight:600; }
+
+  /* numpad */
+  .numpad-panel {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    display:flex; flex-direction:column;
+    overflow:hidden; position:sticky; top:0;
+    height:fit-content;
+  }
+  .numpad-product {
+    padding:14px 16px; border-bottom:1px solid var(--border);
+    background:var(--bg);
+  }
+  .numpad-product-name { font-size:14px; font-weight:700; }
+  .numpad-product-sku  { font-size:12px; color:var(--text-muted); font-family:'DM Mono',monospace; margin-top:2px; }
+  .numpad-display {
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    text-align:right;
+  }
+  .numpad-label  { font-size:11px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+  .numpad-value  { font-size:36px; font-weight:700; font-family:'DM Mono',monospace; color:var(--text-primary); line-height:1.1; }
+  .numpad-system { font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .numpad-grid {
+    display:grid; grid-template-columns:repeat(3, 1fr);
+    gap:1px; background:var(--border);
+    border-bottom:1px solid var(--border);
+  }
+  .nk {
+    background:var(--surface); border:none; padding:0; height:60px;
+    font-size:20px; font-weight:600; font-family:'DM Sans',sans-serif;
+    cursor:pointer; transition:background 0.1s; color:var(--text-primary);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nk:hover { background:#F9FAFB; }
+  .nk:active { background:#F0F1F6; }
+  .nk-action { font-size:15px; background:#F5F6FA; color:var(--text-secondary); }
+  .nk-confirm { background:var(--accent); color:#fff; font-size:14px; }
+  .nk-confirm:hover { background:var(--accent-dark); }
+  .numpad-note { padding:10px 14px; border-bottom:1px solid var(--border); }
+  .numpad-note input { font-size:13px; }
+  .discrepancy { font-size:12px; font-weight:700; padding:3px 8px; border-radius:4px; margin-left:6px; }
+  .disc-pos { background:var(--green-bg); color:#059669; }
+  .disc-neg { background:var(--red-bg); color:var(--red); }
+  .disc-zero{ background:#F3F4F6; color:var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🏪</div>
+      <div><div class="logo-text">StockFlow</div><div class="logo-sub">Fashion Store</div></div>
+    </div>
+    <div class="sidebar-section">Inventory</div>
+    <a href="index.html" class="nav-item"><span class="nav-icon">📦</span> Inventory</a>
+    <a href="stocktake.html" class="nav-item active"><span class="nav-icon">🔢</span> Stocktake</a>
+    <a href="purchase-order.html" class="nav-item"><span class="nav-icon">🛒</span> Purchase Order</a>
+    <a class="nav-item disabled"><span class="nav-icon">🏭</span> Supplier</a>
+    <a href="ledger.html" class="nav-item"><span class="nav-icon">📋</span> Ledger</a>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Stocktake</div>
+        <div class="topbar-sub">Count your physical inventory and compare with system records</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <button class="btn btn-primary btn-sm" onclick="showNewStocktakeModal()">+ Do Stocktake</button>
+    </div>
+
+    <!-- ════ VIEW: HISTORY LIST ════ -->
+    <div class="page-content" id="view-history">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Stocktake History</h1>
+          <p>6 stocktakes recorded</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th>Counted By</th>
+                <th>Status</th>
+                <th>Adjustments</th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onclick="showDetail('ST-2026-006')" style="cursor:pointer">
+                <td class="st-id">ST-2026-006</td>
+                <td>22 Apr 2026, 09:14</td>
+                <td>—</td>
+                <td>Sophea Keo</td>
+                <td><span class="badge badge-orange">Ongoing</span></td>
+                <td>—</td>
+                <td>April Mid-Month Count</td>
+                <td onclick="event.stopPropagation()"><button class="btn btn-primary btn-sm" onclick="openCounting()">Continue</button></td>
+              </tr>
+              <tr onclick="showDetail('ST-2026-005')" style="cursor:pointer">
+                <td class="st-id">ST-2026-005</td>
+                <td>01 Apr 2026, 08:30</td>
+                <td>01 Apr 2026, 11:45</td>
+                <td>Dara Chan</td>
+                <td><span class="badge badge-green">Complete</span></td>
+                <td>+3 items adjusted</td>
+                <td>End of March Count</td>
+                <td></td>
+              </tr>
+              <tr onclick="showDetail('ST-2026-004')" style="cursor:pointer">
+                <td class="st-id">ST-2026-004</td>
+                <td>01 Mar 2026, 08:00</td>
+                <td>01 Mar 2026, 10:20</td>
+                <td>Sophea Keo</td>
+                <td><span class="badge badge-green">Complete</span></td>
+                <td>+1 item adjusted</td>
+                <td>End of February Count</td>
+                <td></td>
+              </tr>
+              <tr onclick="showDetail('ST-2026-003')" style="cursor:pointer">
+                <td class="st-id">ST-2026-003</td>
+                <td>14 Feb 2026, 09:00</td>
+                <td>—</td>
+                <td>Vanna Ros</td>
+                <td><span class="badge badge-gray">Cancelled</span></td>
+                <td>—</td>
+                <td>Valentine Spot Check</td>
+                <td></td>
+              </tr>
+              <tr onclick="showDetail('ST-2026-002')" style="cursor:pointer">
+                <td class="st-id">ST-2026-002</td>
+                <td>01 Feb 2026, 08:15</td>
+                <td>01 Feb 2026, 12:00</td>
+                <td>Dara Chan</td>
+                <td><span class="badge badge-green">Complete</span></td>
+                <td>+5 items adjusted</td>
+                <td>End of January Count</td>
+                <td></td>
+              </tr>
+              <tr onclick="showDetail('ST-2026-001')" style="cursor:pointer">
+                <td class="st-id">ST-2026-001</td>
+                <td>02 Jan 2026, 09:00</td>
+                <td>02 Jan 2026, 13:30</td>
+                <td>Sophea Keo</td>
+                <td><span class="badge badge-green">Complete</span></td>
+                <td>+8 items adjusted</td>
+                <td>New Year Opening Count</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VIEW: DETAIL ════ -->
+    <div class="page-content" id="view-detail" style="display:none">
+      <div class="detail-header">
+        <button class="btn btn-ghost btn-sm" onclick="backToHistory()">← Back</button>
+        <div>
+          <h2 id="detail-id">ST-2026-005</h2>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:2px" id="detail-meta">Completed · 01 Apr 2026 · Counted by Dara Chan · End of March Count</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>System Qty</th>
+                <th>Counted</th>
+                <th>Discrepancy</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="fw-600">White Converse Size 34</td><td class="mono">CNV-WHT-34</td><td>14</td><td>15</td><td><span class="discrepancy disc-pos">+1</span></td><td>Found extra in back room</td></tr>
+              <tr><td class="fw-600">Nike Air Max Black 42</td><td class="mono">NAM-BLK-42</td><td>3</td><td>2</td><td><span class="discrepancy disc-neg">−1</span></td><td>Possible display unit missing</td></tr>
+              <tr><td class="fw-600">Oversized Tee White L</td><td class="mono">TEE-WHT-L</td><td>4</td><td>3</td><td><span class="discrepancy disc-neg">−1</span></td><td>Unrecorded return</td></tr>
+              <tr><td class="fw-600">Slim Denim Jeans W30</td><td class="mono">DNM-SLM-30</td><td>13</td><td>13</td><td><span class="discrepancy disc-zero">0</span></td><td>—</td></tr>
+              <tr><td class="fw-600">Bomber Jacket Black M</td><td class="mono">BMB-BLK-M</td><td>5</td><td>6</td><td><span class="discrepancy disc-pos">+1</span></td><td>Received late, not entered</td></tr>
+              <tr><td class="fw-600">Canvas Cap Black</td><td class="mono">CAP-CVS-BLK</td><td>24</td><td>24</td><td><span class="discrepancy disc-zero">0</span></td><td>—</td></tr>
+              <tr><td class="fw-600">Tote Bag Natural</td><td class="mono">TOT-CNV-NAT</td><td>10</td><td>11</td><td><span class="discrepancy disc-pos">+1</span></td><td>Found extra in stock room</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VIEW: COUNTING ════ -->
+    <div class="page-content" id="view-counting" style="display:none;padding:16px 28px">
+      <div class="detail-header" style="margin-bottom:14px">
+        <button class="btn btn-ghost btn-sm" onclick="backToHistory()">← Back</button>
+        <div>
+          <h2>ST-2026-006 — April Mid-Month Count</h2>
+          <div style="font-size:13px;color:var(--text-secondary)">Tap a product to count · <span id="counted-progress">0</span> / <span id="counted-total">6</span> counted</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" onclick="backToHistory()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="finishStocktake()">✓ Finish Stocktake</button>
+      </div>
+
+      <div class="count-layout">
+        <!-- Left: product list -->
+        <div class="card" style="overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+            <div style="flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;background:var(--bg)">
+              <span style="color:var(--text-muted)">🔍</span>
+              <input type="text" placeholder="Search product or scan barcode…" style="border:none;outline:none;font-family:inherit;font-size:13px;background:transparent;width:100%">
+            </div>
+          </div>
+          <div class="count-list" id="count-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Right: numpad -->
+        <div>
+          <div class="numpad-panel" id="numpad-panel">
+            <div class="numpad-product" id="numpad-product-info">
+              <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px 0">
+                ← Select a product to start counting
+              </div>
+            </div>
+            <div class="numpad-display">
+              <div class="numpad-label">Counted Qty</div>
+              <div class="numpad-value" id="numpad-display">—</div>
+              <div class="numpad-system" id="numpad-system">System qty: —</div>
+            </div>
+            <div class="numpad-note">
+              <input class="input" id="numpad-note-input" placeholder="Note (e.g. damaged, display unit)…" />
+            </div>
+            <div class="numpad-grid">
+              <button class="nk" onclick="numpadInput('7')">7</button>
+              <button class="nk" onclick="numpadInput('8')">8</button>
+              <button class="nk" onclick="numpadInput('9')">9</button>
+              <button class="nk" onclick="numpadInput('4')">4</button>
+              <button class="nk" onclick="numpadInput('5')">5</button>
+              <button class="nk" onclick="numpadInput('6')">6</button>
+              <button class="nk" onclick="numpadInput('1')">1</button>
+              <button class="nk" onclick="numpadInput('2')">2</button>
+              <button class="nk" onclick="numpadInput('3')">3</button>
+              <button class="nk nk-action" onclick="numpadClear()">C</button>
+              <button class="nk" onclick="numpadInput('0')">0</button>
+              <button class="nk nk-action" onclick="numpadBackspace()">⌫</button>
+            </div>
+            <button class="nk nk-confirm" style="width:100%;border-radius:0 0 var(--radius-lg) var(--radius-lg)" onclick="confirmCount()" id="numpad-confirm" disabled>✓ Confirm Count</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- New Stocktake Modal -->
+<div class="modal-overlay" id="new-st-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>New Stocktake</h2>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="document.getElementById('new-st-modal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13.5px">A new session will be created. You can pause and continue at any time.</p>
+      <div class="input-group">
+        <label class="input-label">Stocktake Note</label>
+        <input class="input" id="new-st-note" placeholder="e.g. End of the Month Count, Spot Check…" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('new-st-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="startNewStocktake()">Start Stocktake</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ─── Demo products for counting ─── */
+  const countProducts = [
+    { name:'White Converse Size 34', sku:'CNV-WHT-34', cat:'Sneakers', icon:'👟', system:15 },
+    { name:'Nike Air Max Black 42',  sku:'NAM-BLK-42', cat:'Sneakers', icon:'👟', system:2  },
+    { name:'Oversized Tee White L',  sku:'TEE-WHT-L',  cat:'T-Shirts', icon:'👕', system:3  },
+    { name:'Slim Denim Jeans W30',   sku:'DNM-SLM-30', cat:'Denim',    icon:'👖', system:13 },
+    { name:'Bomber Jacket Black M',  sku:'BMB-BLK-M',  cat:'Jackets',  icon:'🧥', system:6  },
+    { name:'Canvas Cap Black',       sku:'CAP-CVS-BLK',cat:'Accessories',icon:'🧢',system:24 },
+  ];
+  let counted = {};   // { index: { qty, note } }
+  let activeIdx = null;
+  let numpadVal = '';
+
+  function renderCountList() {
+    const list = document.getElementById('count-list');
+    list.innerHTML = '';
+    countProducts.forEach((p, i) => {
+      const done = counted[i] !== undefined;
+      const div = document.createElement('div');
+      div.className = 'count-item' + (i === activeIdx ? ' active' : '');
+      div.onclick = () => selectCountItem(i);
+      div.innerHTML = `
+        <div class="count-item-icon">${p.icon}</div>
+        <div style="flex:1">
+          <div class="count-item-name">${p.name}</div>
+          <div class="count-item-sku">${p.sku}</div>
+        </div>
+        <div style="text-align:right">
+          ${done
+            ? `<div class="count-item-qty" style="color:var(--green)">${counted[i].qty}</div><div class="count-item-counted">✓ Counted</div>`
+            : `<div class="count-item-qty" style="color:var(--text-muted)">Sys: ${p.system}</div>`
+          }
+        </div>`;
+      list.appendChild(div);
+    });
+    const n = Object.keys(counted).length;
+    document.getElementById('counted-progress').textContent = n;
+    document.getElementById('counted-total').textContent = countProducts.length;
+  }
+
+  function selectCountItem(i) {
+    activeIdx = i;
+    numpadVal = counted[i] ? String(counted[i].qty) : '';
+    const p = countProducts[i];
+    document.getElementById('numpad-product-info').innerHTML = `
+      <div class="numpad-product-name">${p.name}</div>
+      <div class="numpad-product-sku">${p.sku} · System: <strong>${p.system}</strong></div>`;
+    document.getElementById('numpad-note-input').value = counted[i] ? counted[i].note : '';
+    document.getElementById('numpad-confirm').disabled = false;
+    updateNumpadDisplay();
+    renderCountList();
+  }
+
+  function numpadInput(d) {
+    if (activeIdx === null) return;
+    numpadVal = (numpadVal === '0' ? d : numpadVal + d).slice(0, 4);
+    updateNumpadDisplay();
+  }
+  function numpadBackspace() {
+    numpadVal = numpadVal.slice(0, -1);
+    updateNumpadDisplay();
+  }
+  function numpadClear() {
+    numpadVal = '';
+    updateNumpadDisplay();
+  }
+  function updateNumpadDisplay() {
+    const v = numpadVal === '' ? '—' : numpadVal;
+    document.getElementById('numpad-display').textContent = v;
+    if (activeIdx !== null) {
+      const sys = countProducts[activeIdx].system;
+      const diff = numpadVal !== '' ? (parseInt(numpadVal) - sys) : null;
+      document.getElementById('numpad-system').innerHTML =
+        `System qty: ${sys}` +
+        (diff !== null ? ` <span class="discrepancy ${diff>0?'disc-pos':diff<0?'disc-neg':'disc-zero'}">${diff>0?'+':''}${diff}</span>` : '');
+    }
+  }
+
+  function confirmCount() {
+    if (activeIdx === null || numpadVal === '') return;
+    counted[activeIdx] = {
+      qty: parseInt(numpadVal),
+      note: document.getElementById('numpad-note-input').value
+    };
+    renderCountList();
+    // Auto-advance to next uncounted
+    const next = countProducts.findIndex((_, i) => i > activeIdx && counted[i] === undefined);
+    if (next !== -1) selectCountItem(next);
+    else { activeIdx = null; numpadVal = ''; updateNumpadDisplay(); }
+  }
+
+  function openCounting() {
+    document.getElementById('view-history').style.display = 'none';
+    document.getElementById('view-counting').style.display = 'block';
+    renderCountList();
+  }
+  function backToHistory() {
+    document.getElementById('view-detail').style.display = 'none';
+    document.getElementById('view-counting').style.display = 'none';
+    document.getElementById('view-history').style.display = 'block';
+  }
+  function showDetail(id) {
+    document.getElementById('detail-id').textContent = id;
+    document.getElementById('view-history').style.display = 'none';
+    document.getElementById('view-detail').style.display = 'block';
+  }
+  function showNewStocktakeModal() {
+    document.getElementById('new-st-modal').style.display = 'flex';
+  }
+  function startNewStocktake() {
+    document.getElementById('new-st-modal').style.display = 'none';
+    openCounting();
+  }
+  function finishStocktake() {
+    backToHistory();
+  }
+</script>
+</body>
+</html>

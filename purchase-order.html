@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Purchase Order — POS System</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .sub-tab-bar { display:flex; gap:4px; margin-bottom:20px; }
+  .sub-tab {
+    padding:5px 16px; border-radius:20px; font-size:12.5px; font-weight:600;
+    cursor:pointer; border:1px solid var(--border); background:var(--surface);
+    color:var(--text-secondary); transition:all 0.13s; text-decoration:none;
+  }
+  .sub-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .sub-tab:hover:not(.active) { background:var(--bg); color:var(--text-primary); }
+
+  /* PO product rows */
+  .po-product-row { display:grid; grid-template-columns:1fr 100px 100px 100px 36px; gap:8px; align-items:center; margin-bottom:8px; }
+  .po-product-header { font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px; }
+
+  /* cost summary */
+  .cost-summary { background:var(--bg); border-radius:var(--radius); padding:14px 16px; margin-top:8px; }
+  .cost-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13.5px; }
+  .cost-row:last-child { margin-bottom:0; font-weight:700; font-size:14px; border-top:1px solid var(--border); padding-top:8px; margin-top:4px; }
+
+  /* delivery receipt form */
+  .dr-row { display:grid; grid-template-columns:1fr 80px 80px 80px 1fr; gap:8px; align-items:center; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🏪</div>
+      <div><div class="logo-text">StockFlow</div><div class="logo-sub">Fashion Store</div></div>
+    </div>
+    <div class="sidebar-section">Inventory</div>
+    <a href="inventory.html" class="nav-item"><span class="nav-icon">📦</span> Inventory</a>
+    <a href="stocktake.html" class="nav-item"><span class="nav-icon">🔢</span> Stocktake</a>
+    <a href="purchase-order.html" class="nav-item active"><span class="nav-icon">🛒</span> Purchase Order</a>
+    <a class="nav-item disabled"><span class="nav-icon">🏭</span> Supplier</a>
+    <a href="ledger.html" class="nav-item"><span class="nav-icon">📋</span> Ledger</a>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Purchase Orders</div>
+        <div class="topbar-sub" id="topbar-sub">Manage your supplier purchase orders</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="tab-bar">
+        <a class="tab active" onclick="switchMainTab('po')" id="main-tab-po">Purchase Orders</a>
+        <a class="tab" onclick="switchMainTab('dr')" id="main-tab-dr">Delivery Receipts</a>
+      </div>
+    </div>
+
+    <!-- ════ PO VIEW ════ -->
+    <div class="page-content" id="view-po">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="sub-tab-bar">
+            <span class="sub-tab active" onclick="filterPO('Sent',this)">Sent</span>
+            <span class="sub-tab" onclick="filterPO('Draft',this)">Draft</span>
+            <span class="sub-tab" onclick="filterPO('Closed',this)">Closed</span>
+          </div>
+        </div>
+        <div class="page-header-right">
+          <button class="btn btn-primary btn-sm" onclick="openAddPO()">+ Add Purchase Order</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table id="po-table">
+            <thead>
+              <tr>
+                <th>PO ID</th>
+                <th>Supplier</th>
+                <th>Units Purchased</th>
+                <th>Cost</th>
+                <th>Payment Term</th>
+                <th>Expected Delivery</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="po-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ DR VIEW ════ -->
+    <div class="page-content" id="view-dr" style="display:none">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Delivery Receipts</h1>
+          <p>All received purchase orders</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Receipt ID</th>
+                <th>PO Reference</th>
+                <th>Supplier</th>
+                <th>Received Date</th>
+                <th>Units Received</th>
+                <th>Received By</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">DR-2026-003</td><td class="mono">PO-2026-003</td><td>Converse Cambodia</td><td>10/04/2026</td><td>48</td><td>Sophea Keo</td><td>All items received in good condition</td></tr>
+              <tr><td class="mono">DR-2026-002</td><td class="mono">PO-2026-002</td><td>Nike Wholesale KH</td><td>20/03/2026</td><td>22</td><td>Dara Chan</td><td>2 units missing — Nike Air Max Black 42</td></tr>
+              <tr><td class="mono">DR-2026-001</td><td class="mono">PO-2026-001</td><td>Urban Threads Dist.</td><td>05/02/2026</td><td>60</td><td>Sophea Keo</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ ADD PO VIEW ════ -->
+    <div class="page-content" id="view-add-po" style="display:none">
+      <div class="detail-header" style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <button class="btn btn-ghost btn-sm" onclick="closeAddPO()">← Back</button>
+        <div><h2 style="font-size:18px;font-weight:700">New Purchase Order</h2><div style="font-size:13px;color:var(--text-secondary)">PO ID will be auto-generated on save</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="card" style="padding:20px">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Order Details</h3>
+          <div style="display:grid;gap:12px">
+            <div class="input-group">
+              <label class="input-label">Supplier</label>
+              <select class="select">
+                <option>— Select Supplier —</option>
+                <option>Converse Cambodia</option>
+                <option>Nike Wholesale KH</option>
+                <option>Urban Threads Dist.</option>
+                <option>Adidas SEA</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Payment Term</label>
+              <select class="select">
+                <option>Net 30</option>
+                <option>Net 15</option>
+                <option>Net 60</option>
+                <option>COD (Cash on Delivery)</option>
+                <option>Prepaid</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Expected Delivery Date</label>
+              <input class="input" type="date" value="2026-05-15" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Note</label>
+              <textarea class="input" placeholder="Any special instructions for this order…" style="min-height:60px"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Cost Adjustment</h3>
+          <div style="display:grid;gap:12px">
+            <div class="input-group">
+              <label class="input-label">Shipping Fee ($)</label>
+              <input class="input" type="number" placeholder="0.00" id="po-shipping" oninput="recalcPO()" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Discount ($)</label>
+              <input class="input" type="number" placeholder="0.00" id="po-discount" oninput="recalcPO()" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Tax (%)</label>
+              <input class="input" type="number" placeholder="0" id="po-tax" oninput="recalcPO()" />
+            </div>
+          </div>
+
+          <div class="cost-summary" style="margin-top:16px">
+            <div class="cost-row"><span>Subtotal</span><span id="po-subtotal">$0.00</span></div>
+            <div class="cost-row"><span>Shipping</span><span id="po-ship-disp">$0.00</span></div>
+            <div class="cost-row"><span>Discount</span><span id="po-disc-disp" style="color:var(--red)">−$0.00</span></div>
+            <div class="cost-row"><span>Tax</span><span id="po-tax-disp">$0.00</span></div>
+            <div class="cost-row"><span>Total</span><span id="po-total" style="color:var(--accent)">$0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products table -->
+      <div class="card" style="padding:20px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <h3 style="font-size:14px;font-weight:700">Products</h3>
+          <button class="btn btn-secondary btn-sm" onclick="addPORow()">+ Add Product</button>
+        </div>
+        <div class="po-product-header" style="display:grid;grid-template-columns:1fr 100px 100px 100px 36px;gap:8px;padding:0 0 6px">
+          <span>Product</span><span>Current Stock</span><span>Unit Cost ($)</span><span>Order Qty</span><span></span>
+        </div>
+        <div id="po-rows">
+          <!-- Starter rows -->
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">* Total auto-calculated based on unit cost × order qty</div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeAddPO()">Cancel</button>
+        <button class="btn btn-secondary" onclick="saveDraft()">💾 Draft PO</button>
+        <button class="btn btn-primary" onclick="sendPO()">📤 Send PO</button>
+      </div>
+    </div>
+
+    <!-- ════ DELIVERY RECEIPT FORM VIEW ════ -->
+    <div class="page-content" id="view-dr-form" style="display:none">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <button class="btn btn-ghost btn-sm" onclick="closeDRForm()">← Back</button>
+        <div>
+          <h2 style="font-size:18px;font-weight:700">Receive Delivery</h2>
+          <div style="font-size:13px;color:var(--text-secondary)" id="dr-po-ref">PO-2026-004 · Converse Cambodia · Expected: 30/04/2026</div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:20px">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Items to Receive</h3>
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 1fr;gap:8px;margin-bottom:8px">
+          <div class="po-product-header">Product</div>
+          <div class="po-product-header">Ordered</div>
+          <div class="po-product-header">Received</div>
+          <div class="po-product-header">Variance</div>
+          <div class="po-product-header">Note</div>
+        </div>
+        <div id="dr-rows">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:20px">
+        <div class="input-group">
+          <label class="input-label">General Delivery Note</label>
+          <textarea class="input" placeholder="Overall condition, delivery notes, issues…"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeDRForm()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveDRForm()">✓ Confirm Receipt</button>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Confirm modal -->
+<div class="modal-overlay" id="confirm-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header"><h2 id="confirm-title">Done</h2></div>
+    <div class="modal-body"><p id="confirm-msg" style="color:var(--text-secondary)"></p></div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="document.getElementById('confirm-modal').style.display='none'">OK</button></div>
+  </div>
+</div>
+
+<script>
+  /* ─── PO Data ─── */
+  const poData = {
+    Sent: [
+      { id:'PO-2026-004', supplier:'Converse Cambodia',  units:36, cost:'$1,620.00', term:'Net 30', delivery:'30/04/2026' },
+      { id:'PO-2026-005', supplier:'Adidas SEA',          units:20, cost:'$980.00',  term:'Net 15', delivery:'05/05/2026' },
+    ],
+    Draft: [
+      { id:'PO-2026-006', supplier:'Urban Threads Dist.', units:50, cost:'$750.00',  term:'Net 60', delivery:'15/05/2026' },
+    ],
+    Closed: [
+      { id:'PO-2026-003', supplier:'Converse Cambodia',   units:48, cost:'$2,160.00',term:'Net 30', delivery:'10/04/2026' },
+      { id:'PO-2026-002', supplier:'Nike Wholesale KH',   units:24, cost:'$1,440.00',term:'Net 15', delivery:'20/03/2026' },
+      { id:'PO-2026-001', supplier:'Urban Threads Dist.', units:60, cost:'$900.00',  term:'Net 60', delivery:'05/02/2026' },
+    ]
+  };
+
+  let currentPOFilter = 'Sent';
+
+  function renderPO(filter) {
+    currentPOFilter = filter;
+    const tbody = document.getElementById('po-tbody');
+    tbody.innerHTML = '';
+    (poData[filter] || []).forEach(p => {
+      const isClosed = filter === 'Closed';
+      const isDraft  = filter === 'Draft';
+      const statusBadge = isClosed
+        ? `<span class="badge badge-gray">Closed</span>`
+        : isDraft
+          ? `<span class="badge badge-orange">Draft</span>`
+          : `<span class="badge badge-blue">Sent</span>`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono fw-600">${p.id}</td>
+        <td>${p.supplier}</td>
+        <td>${p.units}</td>
+        <td class="fw-600">${p.cost}</td>
+        <td>${p.term}</td>
+        <td>${p.delivery}</td>
+        <td>${statusBadge}</td>
+        <td>
+          ${!isClosed ? `<div class="dot-menu">
+            <button class="dot-btn" onclick="toggleDot(this)">•••</button>
+            <div class="dot-dropdown">
+              <button onclick="openDRForm('${p.id}','${p.supplier}','${p.delivery}')">📥 Receive</button>
+              <button onclick="editPO('${p.id}')">✏️ Edit</button>
+              ${isDraft ? `<button onclick="sendPOAction('${p.id}')">📤 Send PO</button>` : ''}
+            </div>
+          </div>` : '—'}
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filterPO(status, el) {
+    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderPO(status);
+  }
+
+  function toggleDot(btn) {
+    const dd = btn.nextElementSibling;
+    const wasOpen = dd.classList.contains('open');
+    document.querySelectorAll('.dot-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!wasOpen) dd.classList.add('open');
+  }
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.dot-dropdown.open').forEach(d => {
+      if (!d.parentElement.contains(e.target)) d.classList.remove('open');
+    });
+  });
+
+  function switchMainTab(tab) {
+    const isPO = tab === 'po';
+    document.getElementById('view-po').style.display   = isPO ? 'block' : 'none';
+    document.getElementById('view-dr').style.display   = isPO ? 'none' : 'block';
+    document.getElementById('view-add-po').style.display = 'none';
+    document.getElementById('view-dr-form').style.display = 'none';
+    document.getElementById('main-tab-po').classList.toggle('active', isPO);
+    document.getElementById('main-tab-dr').classList.toggle('active', !isPO);
+    document.getElementById('topbar-title').textContent = isPO ? 'Purchase Orders' : 'Delivery Receipts';
+  }
+
+  /* ── Add PO ── */
+  let poRowCount = 0;
+  function openAddPO() {
+    document.getElementById('view-po').style.display = 'none';
+    document.getElementById('view-add-po').style.display = 'block';
+    document.getElementById('po-rows').innerHTML = '';
+    poRowCount = 0;
+    addPORow(); addPORow();
+    recalcPO();
+  }
+  function closeAddPO() {
+    document.getElementById('view-add-po').style.display = 'none';
+    document.getElementById('view-po').style.display = 'block';
+  }
+
+  const poProducts = [
+    {name:'White Converse Size 32',stock:12},{name:'White Converse Size 34',stock:15},
+    {name:'Nike Air Max White 40',stock:5},{name:'Oversized Tee Black M',stock:22},
+    {name:'Slim Denim Jeans W30',stock:13},{name:'Bomber Jacket Black M',stock:6},
+    {name:'Canvas Cap Black',stock:24},{name:'Tote Bag Natural',stock:11},
+  ];
+  const opts = poProducts.map(p => `<option value="${p.stock}">${p.name} (Stock: ${p.stock})</option>`).join('');
+
+  function addPORow() {
+    const i = poRowCount++;
+    const div = document.createElement('div');
+    div.className = 'po-product-row';
+    div.id = 'po-row-' + i;
+    div.innerHTML = `
+      <select class="select" onchange="updateStock(${i},this)" style="font-size:13px">
+        <option value="">— Select Product —</option>${opts}
+      </select>
+      <input class="input" id="po-cur-${i}" readonly placeholder="—" style="text-align:center;font-weight:600" />
+      <input class="input" id="po-cost-${i}" type="number" placeholder="0.00" min="0" oninput="recalcPO()" style="text-align:right" />
+      <input class="input" id="po-qty-${i}" type="number" placeholder="0" min="0" oninput="recalcPO()" style="text-align:center" />
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="document.getElementById('po-row-${i}').remove();recalcPO()" title="Remove">✕</button>`;
+    document.getElementById('po-rows').appendChild(div);
+  }
+
+  function updateStock(i, sel) {
+    document.getElementById('po-cur-' + i).value = sel.value || '—';
+  }
+
+  function recalcPO() {
+    let sub = 0;
+    for (let i = 0; i < poRowCount; i++) {
+      const row = document.getElementById('po-row-' + i);
+      if (!row) continue;
+      const cost = parseFloat(document.getElementById('po-cost-' + i)?.value) || 0;
+      const qty  = parseFloat(document.getElementById('po-qty-'  + i)?.value) || 0;
+      sub += cost * qty;
+    }
+    const ship = parseFloat(document.getElementById('po-shipping')?.value) || 0;
+    const disc = parseFloat(document.getElementById('po-discount')?.value) || 0;
+    const taxPct = parseFloat(document.getElementById('po-tax')?.value) || 0;
+    const tax = (sub + ship - disc) * (taxPct / 100);
+    const total = sub + ship - disc + tax;
+    document.getElementById('po-subtotal').textContent = '$' + sub.toFixed(2);
+    document.getElementById('po-ship-disp').textContent = '$' + ship.toFixed(2);
+    document.getElementById('po-disc-disp').textContent = '−$' + disc.toFixed(2);
+    document.getElementById('po-tax-disp').textContent = '$' + tax.toFixed(2);
+    document.getElementById('po-total').textContent = '$' + total.toFixed(2);
+  }
+
+  function saveDraft()  { showConfirm('Draft Saved', 'Purchase order has been saved as a draft.'); closeAddPO(); }
+  function sendPO()     { showConfirm('PO Sent', 'Purchase order sent to supplier successfully.'); closeAddPO(); }
+  function editPO(id)   { openAddPO(); }
+  function sendPOAction(id) { showConfirm('PO Sent', `Purchase order ${id} has been sent.`); }
+
+  /* ── DR Form ── */
+  const drItems = [
+    { name:'White Converse Size 32', ordered:12 },
+    { name:'White Converse Size 34', ordered:12 },
+    { name:'White Converse Size 35', ordered:6  },
+    { name:'Black Converse Size 38', ordered:6  },
+  ];
+
+  function openDRForm(poId, supplier, delivery) {
+    document.getElementById('view-po').style.display = 'none';
+    document.getElementById('dr-po-ref').textContent = `${poId} · ${supplier} · Expected: ${delivery}`;
+    const rows = document.getElementById('dr-rows');
+    rows.innerHTML = '';
+    drItems.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display:grid;grid-template-columns:1fr 80px 80px 80px 1fr;gap:8px;align-items:center;margin-bottom:8px';
+      div.innerHTML = `
+        <span class="fw-600" style="font-size:13.5px">${item.name}</span>
+        <span style="text-align:center;font-weight:600">${item.ordered}</span>
+        <input class="input" id="dr-recv-${i}" type="number" value="${item.ordered}" min="0" oninput="updateDRVariance(${i},${item.ordered})" style="text-align:center" />
+        <span id="dr-var-${i}" class="discrepancy disc-zero" style="text-align:center">0</span>
+        <input class="input" id="dr-note-${i}" placeholder="Note if variance…" style="font-size:13px" />`;
+      rows.appendChild(div);
+    });
+    document.getElementById('view-dr-form').style.display = 'block';
+  }
+
+  function updateDRVariance(i, ordered) {
+    const recv = parseInt(document.getElementById('dr-recv-' + i)?.value) || 0;
+    const diff = recv - ordered;
+    const el = document.getElementById('dr-var-' + i);
+    el.className = 'discrepancy ' + (diff > 0 ? 'disc-pos' : diff < 0 ? 'disc-neg' : 'disc-zero');
+    el.textContent = (diff > 0 ? '+' : '') + diff;
+  }
+
+  function closeDRForm() {
+    document.getElementById('view-dr-form').style.display = 'none';
+    document.getElementById('view-po').style.display = 'block';
+  }
+  function saveDRForm() { showConfirm('Delivery Confirmed', 'Stock has been updated and delivery receipt recorded.'); closeDRForm(); }
+
+  function showConfirm(title, msg) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-modal').style.display = 'flex';
+  }
+
+  /* init */
+  renderPO('Sent');
+</script>
+</body>
+</html>
